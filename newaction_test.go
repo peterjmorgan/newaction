@@ -1,4 +1,4 @@
-package newaction
+package main
 
 import "testing"
 
