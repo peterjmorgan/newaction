@@ -42,7 +42,7 @@ func DeterminePatchType(diffData []byte) string {
 	for _, diff := range d {
 		diffFileName := strings.TrimPrefix(diff.NewName, "b/")
 		if prType != "" && diffFileName != prType {
-			errors.New("Pull request changes multiple package files")
+			errors.New("pull request changes multiple package files")
 		}
 		switch diffFileName {
 		case "requirements.txt":
@@ -90,9 +90,9 @@ func ParsePackageLock(changes []string) []pkgVerTuple {
 	cur := 0
 	pkgVer := make([]pkgVerTuple,0)
 
-	namePat := regexp.MustCompile(".*\"(.*?)\": {")
-	versionPat := regexp.MustCompile(".*\"version\": \"(.*?)\"")
-	resolvedPat := regexp.MustCompile(".*\"resolved\": \"(.*?)\"")
+	namePat := regexp.MustCompile(`\+.*"(.*?)": {`)
+	versionPat := regexp.MustCompile(`\+.*"version": "(.*?)"`)
+	resolvedPat := regexp.MustCompile(`\+.*"resolved": "(.*?)"`)
 
 	for cur < len(changes)-2 {
 		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
@@ -106,6 +106,45 @@ func ParsePackageLock(changes []string) []pkgVerTuple {
 			}
 		}
 		cur += 1
+	}
+	return pkgVer
+}
+
+func ParseYarnLock(changes []string) []pkgVerTuple {
+	cur := 0
+	pkgVer := make([]pkgVerTuple,0)
+
+	namePat := regexp.MustCompile(`\+(.*?)@.*:`)
+	versionPat := regexp.MustCompile(`\+.*version "(.*?)"`)
+	resolvedPat := regexp.MustCompile(`\+.*resolved "(.*?)"`)
+	integrityPat := regexp.MustCompile(`\+.*integrity.*`)
+
+	for cur < len(changes)-3 {
+		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
+		if versionPat.MatchString(changes[cur+1]) {
+			versionMatch := versionPat.FindAllStringSubmatch(changes[cur+1],-1)
+			if resolvedPat.MatchString(changes[cur+2]) {
+				if integrityPat.MatchString(changes[cur+3]) {
+					pkgVer = append(pkgVer, pkgVerTuple{nameMatch[0][1], versionMatch[0][1]})
+				}
+			}
+		}
+		cur += 1
+	}
+	return pkgVer
+}
+
+func ParseRequirementsDotTxt(changes []string) []pkgVerTuple {
+	nameVerPat := regexp.MustCompile(`\+(.*?)==(.*)`)
+	pkgVer := make([]pkgVerTuple,0)
+	for _,line := range changes {
+		if strings.Contains(line,"\n") {
+			continue
+		}
+		if nameVerPat.MatchString(line) {
+			nameVerMatch := nameVerPat.FindAllStringSubmatch(line,-1)
+			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1],nameVerMatch[0][2]})
+		}
 	}
 	return pkgVer
 }
