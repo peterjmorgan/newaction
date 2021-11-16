@@ -10,6 +10,8 @@ func main() {
 	changes := GetChanges(body)
 	pkgVer := ParsePackageLock(changes)
 	fmt.Println(pkgVer)
+	pkgVer = ParseYarnLock(changes)
+	fmt.Println(pkgVer)
 
 	fmt.Println("Testing action - yarn.lock")
 	body = GetPRDiff("peterjmorgan/analyze-pr-action-test",7)
@@ -26,6 +28,4 @@ func main() {
 	changes = GetChanges(body)
 	pkgVer = ParseRequirementsDotTxt(changes)
 	fmt.Println(pkgVer)
-
-
 }

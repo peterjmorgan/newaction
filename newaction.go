@@ -119,6 +119,7 @@ func ParseYarnLock(changes []string) []pkgVerTuple {
 	resolvedPat := regexp.MustCompile(`\+.*resolved "(.*?)"`)
 	integrityPat := regexp.MustCompile(`\+.*integrity.*`)
 
+
 	for cur < len(changes)-3 {
 		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
 		if versionPat.MatchString(changes[cur+1]) {
@@ -148,3 +149,4 @@ func ParseRequirementsDotTxt(changes []string) []pkgVerTuple {
 	}
 	return pkgVer
 }
+
