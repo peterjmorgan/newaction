@@ -109,3 +109,27 @@ func ParsePackageLock(changes []string) []pkgVerTuple {
 	}
 	return pkgVer
 }
+
+func ParseYarnLock(changes []string) []pkgVerTuple {
+	cur := 0
+	pkgVer := make([]pkgVerTuple,0)
+
+	namePat := regexp.MustCompile("(.*?)@.*:")
+	versionPat := regexp.MustCompile(".*version \"(.*?)\"")
+	resolvedPat := regexp.MustCompile(".*resolved \"(.*?)\"")
+	integrityPat := regexp.MustCompile(".*integrity.*")
+
+	for cur < len(changes)-3 {
+		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
+		if versionPat.MatchString(changes[cur+1]) {
+			versionMatch := versionPat.FindAllStringSubmatch(changes[cur+1],-1)
+			if resolvedPat.MatchString(changes[cur+2]) {
+				if integrityPat.MatchString(changes[cur+3]) {
+					pkgVer = append(pkgVer, pkgVerTuple{nameMatch[0][1], versionMatch[0][1]})
+				}
+			}
+		}
+		cur += 1
+	}
+	return pkgVer
+}
