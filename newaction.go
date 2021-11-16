@@ -81,18 +81,31 @@ func GetChanges(diffData []byte) []string {
 	return changes
 }
 
-func ParsePackageLock(changes []string) []map[string]int {
+type pkgVerTuple struct {
+	name string
+	version string
+}
+
+func ParsePackageLock(changes []string) []pkgVerTuple {
 	cur := 0
-	pkgVer := make(map[string]int,0)
-	name_pat := regexp.Compile(".*\"(.*?)\": \{")
-	version_pat := regexp.Compile(".*\"version\": \"(.*?)\"")
-	resolved_pat := regexp.Compile(".*\"resolved\": \"(.*?)\"")
+	pkgVer := make([]pkgVerTuple,0)
+
+	namePat := regexp.MustCompile(".*\"(.*?)\": {")
+	versionPat := regexp.MustCompile(".*\"version\": \"(.*?)\"")
+	resolvedPat := regexp.MustCompile(".*\"resolved\": \"(.*?)\"")
 
 	for cur < len(changes)-2 {
-
+		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
+		if versionPat.MatchString(changes[cur+1]) {
+			versionMatch := versionPat.FindAllStringSubmatch(changes[cur+1],-1)
+			if resolvedPat.MatchString(changes[cur+2]) {
+				if name := nameMatch[0][1]; !strings.Contains(name,"node_modules") {
+					pv := pkgVerTuple{nameMatch[0][1], versionMatch[0][1]}
+					pkgVer = append(pkgVer, pv)
+				}
+			}
+		}
 		cur += 1
 	}
-
-
-
+	return pkgVer
 }
