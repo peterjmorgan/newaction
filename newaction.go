@@ -16,7 +16,6 @@ func GetPRDiff(repo string, prNum int) []byte {
 	//}
 
 	url := fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
-	fmt.Println(url)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -148,5 +147,18 @@ func ParseRequirementsDotTxt(changes []string) []pkgVerTuple {
 		}
 	}
 	return pkgVer
+}
+
+func ParseGemfileLock(changes []string) []pkgVerTuple {
+	nameVerPat := regexp.MustCompile(`\s{4}(.*?)\ \((.*?)\)`)
+	pkgVer := make([]pkgVerTuple,0)
+	for _,line := range changes {
+		if nameVerPat.MatchString(line) {
+			nameVerMatch := nameVerPat.FindAllStringSubmatch(line, -1)
+			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1], nameVerMatch[0][2]})
+		}
+	}
+	return pkgVer
+
 }
 
