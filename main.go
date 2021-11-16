@@ -28,4 +28,12 @@ func main() {
 	changes = GetChanges(body)
 	pkgVer = ParseRequirementsDotTxt(changes)
 	fmt.Println(pkgVer)
+
+	fmt.Println("Testing action - Gemfile.lock")
+	body = GetPRDiff("peterjmorgan/phylum-demo",54)
+	thing = DeterminePatchType(body)
+	fmt.Println("PR Type: ", thing)
+	changes = GetChanges(body)
+	pkgVer = ParseGemfileLock(changes)
+	fmt.Println(pkgVer)
 }
