@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/sourcegraph/go-diff/diff"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
@@ -162,3 +164,123 @@ func ParseGemfileLock(changes []string) []pkgVerTuple {
 
 }
 
+func GetChangedPackages(changes []string, prType string) []pkgVerTuple {
+	var pkgVer []pkgVerTuple
+	switch prType {
+	case "package-lock.json":
+		pkgVer = ParsePackageLock(changes)G
+	case "yarn.lock":
+		pkgVer = ParseYarnLock(changes)
+	case "requirements.txt":
+		pkgVer = ParseRequirementsDotTxt(changes)
+	case "Gemfile.lock":
+		pkgVer = ParseGemfileLock(changes)
+	}
+	return pkgVer
+}
+
+type Package struct {
+	Name               string  `json:"name"`
+	Version            string  `json:"version"`
+	Status             string  `json:"status"`
+	LastUpdated        int64   `json:"last_updated"`
+	License            string  `json:"license"`
+	PackageScore       float64 `json:"package_score"`
+	NumDependencies    int     `json:"num_dependencies"`
+	NumVulnerabilities int     `json:"num_vulnerabilities"`
+	Type               string  `json:"type"`
+	RiskVectors        struct {
+		Engineering   float64 `json:"engineering"`
+		Vulnerability float64 `json:"vulnerability"`
+		Author        float64 `json:"author"`
+		MaliciousCode float64 `json:"malicious_code"`
+		License       float64 `json:"license"`
+	} `json:"riskVectors"`
+	Dependencies interface{}  `json:"dependencies"`
+	Vulnerabilities []struct {
+		Cve         []string `json:"cve"`
+		Severity    float64  `json:"severity"`
+		RiskLevel   string   `json:"risk_level"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Remediation string   `json:"remediation"`
+	} `json:"vulnerabilities"`
+	Issues       []interface{} `json:"issues"`
+}
+
+type PhylumJson struct {
+	JobID         string  `json:"job_id"`
+	Ecosystem     string  `json:"ecosystem"`
+	UserID        string  `json:"user_id"`
+	UserEmail     string  `json:"user_email"`
+	CreatedAt     int64   `json:"created_at"`
+	Status        string  `json:"status"`
+	Score         float64 `json:"score"`
+	Pass          bool    `json:"pass"`
+	Msg           string  `json:"msg"`
+	Action        string  `json:"action"`
+	NumIncomplete int     `json:"num_incomplete"`
+	LastUpdated   int64   `json:"last_updated"`
+	Project       string  `json:"project"`
+	ProjectName   string  `json:"project_name"`
+	Label         string  `json:"label"`
+	Thresholds    struct {
+		Author        float64 `json:"author"`
+		Engineering   float64 `json:"engineering"`
+		License       float64 `json:"license"`
+		Malicious     float64 `json:"malicious"`
+		Total         float64 `json:"total"`
+		Vulnerability float64 `json:"vulnerability"`
+	} `json:"thresholds"`
+	Packages []Package `json:"packages"`
+}
+
+func ReadPhylumAnalysis(filePath string) PhylumJson {
+	data,err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("[❌] ReadPhylumAnalysis couldn't read file: ", filePath)
+		panic(err)
+	}
+	var phylumJson PhylumJson
+	if err := json.Unmarshal(data, &phylumJson); err != nil {
+		fmt.Println("[❌] ReadPhylumAnalysis couldn't unmarshal JSON")
+		panic(err)
+	}
+	return phylumJson
+}
+
+// ParsePhylumRiskData Join the changed packages with risk data from Phylum
+func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson) []Package {
+	resultPackages := make([]Package,0)
+	incompletes := make([]pkgVerTuple,0)
+	for _, pv := range pkgVer {
+		for _, pkg := range phylumJson.Packages {
+			if pv.name == pkg.Name && pv.version == pkg.Version {
+				switch pkg.Status {
+				case "complete":
+					fmt.Println("[✅ COMPLETE] ", pkg.Name)
+					resultPackages = append(resultPackages, pkg)
+				case "incomplete":
+					fmt.Println("[❌ INCOMPLETE] ", pkg.Name)
+					incompletes = append(incompletes,pkgVerTuple{pkg.Name, pkg.Version})
+				}
+			}
+		}
+	}
+	if len(incompletes) > 0 {
+		fmt.Printf("[❌ ERROR] Phylum status for %d packages was incomplete\n", len(incompletes))
+		panic(errors.New("baaad"))
+	}
+	return resultPackages
+}
+
+func CheckRiskScores(packages []Package, ut UserThresholds) string {
+	//var failString strings.Builder
+	rv := pkg.RiskVectors
+	if rv.Vulnerability <= ut.Vul {
+
+	}
+
+
+
+}

@@ -1,0 +1,126 @@
+{
+  "job_id": "1dbf1462-62c1-4c66-b366-91e13e98151c",
+  "ecosystem": "python",
+  "user_id": "56dbfe56-7b70-4da4-b140-e63b801da117",
+  "user_email": "***",
+  "created_at": 1635482937703,
+  "status": "complete",
+  "score": 0.62,
+  "pass": true,
+  "msg": "Project met threshold requirements",
+  "action": "none",
+  "num_incomplete": 0,
+  "last_updated": 1635477495707,
+  "project": "73767869-5aa0-4859-9c5e-01be8f34487f",
+  "project_name": "demo-friday-13",
+  "label": "GHA-PR10-refs/thingy/master",
+  "thresholds": {
+    "author": 0.0,
+    "engineering": 0.0,
+    "license": 0.0,
+    "malicious": 0.0,
+    "total": 0.6,
+    "vulnerability": 0.0
+  },
+  "packages": [
+    {
+      "name": "pillow",
+      "version": "5.3.0",
+      "status": "complete",
+      "last_updated": 1635477485884,
+      "license": "Standard PIL License",
+      "package_score": 0.63,
+      "num_dependencies": 0,
+      "num_vulnerabilities": 3,
+      "type": "python",
+      "riskVectors": {
+        "engineering": 1.0,
+        "vulnerability": 0.25,
+        "author": 1.0,
+        "malicious_code": 1.0,
+        "license": 1.0
+      },
+      "dependencies": {},
+      "vulnerabilities": [
+        {
+          "cve": [
+            "CVE-2021-34552"
+          ],
+          "severity": 0.2,
+          "risk_level": "high",
+          "title": "pillow@5.3.0 is vulnerable to buffer overflow",
+          "description": "Pillow through 8.2.0 and PIL (aka Python Imaging Library) through 1.1.7 allow an attacker to pass controlled parameters directly into a convert function to trigger a buffer overflow in Convert.c.",
+          "remediation": "Upgrade to >= 8.3.0"
+        },
+        {
+          "cve": [
+            "CVE-2021-23437"
+          ],
+          "severity": 0.5,
+          "risk_level": "medium",
+          "title": "pillow@5.3.0 is vulnerable to denial of service",
+          "description": "The package pillow from 0 and before 8.3.2 are vulnerable to Regular Expression Denial of Service (ReDoS) via the getrgb function.",
+          "remediation": "Upgrade to >= 8.3.2"
+        },
+        {
+          "cve": [
+            "CVE-2021-25289"
+          ],
+          "severity": 0.2,
+          "risk_level": "high",
+          "title": "pillow@5.3.0 is vulnerable to buffer overflow",
+          "description": "An issue was discovered in Pillow before 8.1.1. TiffDecode has a heap-based buffer overflow when decoding crafted YCbCr files because of certain interpretation conflicts with LibTIFF in RGBA mode. NOTE: this issue exists because of an incomplete fix for CVE-2020-35654.",
+          "remediation": "Upgrade to >= 8.1.1"
+        }
+      ],
+      "issues": []
+    },
+    {
+      "name": "cffi",
+      "version": "1.14.6",
+      "status": "complete",
+      "last_updated": 1635477492749,
+      "license": "MIT",
+      "package_score": 1.0,
+      "num_dependencies": 1,
+      "num_vulnerabilities": 0,
+      "type": "python",
+      "riskVectors": {
+        "engineering": 1.0,
+        "vulnerability": 1.0,
+        "malicious_code": 1.0,
+        "license": 1.0,
+        "author": 1.0
+      },
+      "dependencies": {
+        "pycparser": "*"
+      },
+      "vulnerabilities": [],
+      "issues": []
+    },
+    {
+      "name": "cherrypy",
+      "version": "8.9.1",
+      "status": "complete",
+      "last_updated": 1635477495707,
+      "license": "BSD",
+      "package_score": 1.0,
+      "num_dependencies": 2,
+      "num_vulnerabilities": 0,
+      "type": "python",
+      "riskVectors": {
+        "malicious_code": 1.0,
+        "license": 1.0,
+        "engineering": 1.0,
+        "vulnerability": 1.0,
+        "author": 1.0
+      },
+      "dependencies": {
+        "routes": ">=2.3.1",
+        "python-memcached": ">=1.58"
+      },
+      "vulnerabilities": [],
+      "issues": []
+    }
+  ]
+}
