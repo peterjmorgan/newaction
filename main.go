@@ -17,9 +17,10 @@ func main() {
 		lang string
 	}{
 		{"peterjmorgan/analyze-pr-action-test", 9,"js"},
-		{"peterjmorgan/analyze-pr-action-test", 7,"js"},
-		{"peterjmorgan/analyze-pr-action-test", 5,"py"},
+		//{"peterjmorgan/analyze-pr-action-test", 7,"js"},
+		//{"peterjmorgan/analyze-pr-action-test", 5,"py"},
 	}
+	ut := UserThresholds{0.25,0.25,0.25,0.25,0.25}
 
 	for _, td := range testData {
 		diffText := GetPRDiff(td.repo,td.prNum)
@@ -27,8 +28,10 @@ func main() {
 		changes  := GetChanges(diffText)
 		pkgVer   := GetChangedPackages(changes,prType)
 		phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",td.lang))
-		phylumRiskData := ParsePhylumRiskData(pkgVer, phylumJsonData)
-		fmt.Println(phylumRiskData)
+		phylumRiskData := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
+		_ = phylumRiskData
+
+
 	}
 	//// JavaScript - package-lock.json ----------------------------------------------------------------------------------
 	//fmt.Println("Testing action - package-lock.json")

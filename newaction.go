@@ -120,7 +120,6 @@ func ParseYarnLock(changes []string) []pkgVerTuple {
 	resolvedPat := regexp.MustCompile(`\+.*resolved "(.*?)"`)
 	integrityPat := regexp.MustCompile(`\+.*integrity.*`)
 
-
 	for cur < len(changes)-3 {
 		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
 		if versionPat.MatchString(changes[cur+1]) {
@@ -161,14 +160,13 @@ func ParseGemfileLock(changes []string) []pkgVerTuple {
 		}
 	}
 	return pkgVer
-
 }
 
 func GetChangedPackages(changes []string, prType string) []pkgVerTuple {
 	var pkgVer []pkgVerTuple
 	switch prType {
 	case "package-lock.json":
-		pkgVer = ParsePackageLock(changes)G
+		pkgVer = ParsePackageLock(changes)
 	case "yarn.lock":
 		pkgVer = ParseYarnLock(changes)
 	case "requirements.txt":
@@ -250,16 +248,18 @@ func ReadPhylumAnalysis(filePath string) PhylumJson {
 }
 
 // ParsePhylumRiskData Join the changed packages with risk data from Phylum
-func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson) []Package {
-	resultPackages := make([]Package,0)
+func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) string {
+	//resultPackages := make([]Package,0)
+	results := make([]string,0)
 	incompletes := make([]pkgVerTuple,0)
+
 	for _, pv := range pkgVer {
 		for _, pkg := range phylumJson.Packages {
 			if pv.name == pkg.Name && pv.version == pkg.Version {
 				switch pkg.Status {
 				case "complete":
 					fmt.Println("[✅ COMPLETE] ", pkg.Name)
-					resultPackages = append(resultPackages, pkg)
+					results = append(results, CheckRiskScores(pkg, ut))
 				case "incomplete":
 					fmt.Println("[❌ INCOMPLETE] ", pkg.Name)
 					incompletes = append(incompletes,pkgVerTuple{pkg.Name, pkg.Version})
@@ -271,16 +271,54 @@ func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson) []Package 
 		fmt.Printf("[❌ ERROR] Phylum status for %d packages was incomplete\n", len(incompletes))
 		panic(errors.New("baaad"))
 	}
-	return resultPackages
+	return strings.Join(results,"")
 }
 
-func CheckRiskScores(packages []Package, ut UserThresholds) string {
-	//var failString strings.Builder
+func CheckRiskScores(pkg Package, ut UserThresholds) string {
+	var headerString, failString, issueString strings.Builder
+	issueFlags := make([]string,0)
+	issueMap := make(map[string]string,0)
 	rv := pkg.RiskVectors
+	fmt.Fprintf(&headerString, "### Package: `%s@%s` failed\n", pkg.Name, pkg.Version)
+	fmt.Fprintf(&headerString, "|Risk Domain|Identified Score|Requirement|\n")
+	fmt.Fprintf(&headerString, "|-----------|----------------|-----------|\n")
 	if rv.Vulnerability <= ut.Vul {
-
+		fmt.Fprintf(&failString, "|Software Vulnerability|%d|%d|\n", rv.Vulnerability, ut.Vul)
+		issueFlags = append(issueFlags,"vul")
+		var singleIssue strings.Builder
+		for _, vuln := range pkg.Vulnerabilities {
+			fmt.Fprintf(&singleIssue,"|%s|%s|%s\n", "Vuln",vuln.RiskLevel, vuln.Title)
+		}
+		issueMap["vul"] = singleIssue.String()
+	}
+	if rv.MaliciousCode <= ut.Mal {
+		fmt.Fprintf(&failString, "|Malicious Code|%d|%d|\n", rv.MaliciousCode, ut.Mal)
+		issueFlags = append(issueFlags,"mal")
+	}
+	if rv.License <= ut.Lic {
+		fmt.Fprintf(&failString, "|License|%d|%d|\n", rv.License, ut.Lic)
+		issueFlags = append(issueFlags,"lic")
+	}
+	if rv.Engineering <= ut.Lic {
+		fmt.Fprintf(&failString, "|Engineering|%d|%d|\n", rv.Engineering, ut.Eng)
+		issueFlags = append(issueFlags,"eng")
+	}
+	if rv.Author <= ut.Aut {
+		fmt.Fprintf(&failString, "|Author|%d|%d|\n", rv.Author, ut.Aut)
+		issueFlags = append(issueFlags,"aut")
 	}
 
+	fmt.Fprintf(&issueString, "\n")
+	fmt.Fprintf(&issueString, "#### Issues Summary\n")
+	fmt.Fprintf(&issueString, "|Risk Domain|Risk Level|Title|\n")
+	fmt.Fprintf(&issueString, "|-----------|----------|-----|\n")
 
+	for _,v := range issueMap {
+		fmt.Fprintf(&issueString, v)
+	}
 
+	if failString.Len() > 0 {
+		return headerString.String() + failString.String() + issueString.String()
+	}
+	return ""
 }
