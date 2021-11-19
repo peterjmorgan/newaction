@@ -1,19 +1,19 @@
 {
-  "job_id": "1dbf1462-62c1-4c66-b366-91e13e98151c",
+  "job_id": "f84db138-2da9-4dd3-9185-ec3f7d349511",
   "ecosystem": "python",
-  "user_id": "56dbfe56-7b70-4da4-b140-e63b801da117",
-  "user_email": "***",
-  "created_at": 1635482937703,
+  "user_id": "4cab3dbe-a7a3-4d53-a57a-42a87dd4e9bc",
+  "user_email": "pete@phylum.io",
+  "created_at": 1637298544794,
   "status": "complete",
-  "score": 0.62,
-  "pass": true,
-  "msg": "Project met threshold requirements",
+  "score": 0.05,
+  "pass": false,
+  "msg": "Project failed due to project score threshold of 0.6 not being met",
   "action": "none",
   "num_incomplete": 0,
-  "last_updated": 1635477495707,
-  "project": "73767869-5aa0-4859-9c5e-01be8f34487f",
-  "project_name": "demo-friday-13",
-  "label": "GHA-PR10-refs/thingy/master",
+  "last_updated": 1637297893750,
+  "project": "d8f63bd9-1021-48ad-95c7-7fee335f246e",
+  "project_name": "testing12345",
+  "label": "uncategorized",
   "thresholds": {
     "author": 0.0,
     "engineering": 0.0,
@@ -24,103 +24,188 @@
   },
   "packages": [
     {
-      "name": "pillow",
-      "version": "5.3.0",
+      "name": "requests",
+      "version": "2.6.1",
       "status": "complete",
-      "last_updated": 1635477485884,
-      "license": "Standard PIL License",
-      "package_score": 0.63,
-      "num_dependencies": 0,
-      "num_vulnerabilities": 3,
+      "last_updated": 1637297893750,
+      "license": "Apache 2.0",
+      "package_score": 0.83,
+      "num_dependencies": 6,
+      "num_vulnerabilities": 1,
       "type": "python",
       "riskVectors": {
-        "engineering": 1.0,
-        "vulnerability": 0.25,
-        "author": 1.0,
         "malicious_code": 1.0,
-        "license": 1.0
+        "vulnerability": 0.5,
+        "author": 1.0,
+        "license": 1.0,
+        "engineering": 1.0
       },
-      "dependencies": {},
+      "dependencies": {
+        "certifi": ">=2017.4.17",
+        "chardet": "<5,>=3.0.2",
+        "PySocks": "!=1.5.7,>=1.5.6",
+        "urllib3": "<1.27,>=1.21.1",
+        "charset-normalizer": "~=2.0.0",
+        "idna": "<4,>=2.5"
+      },
       "vulnerabilities": [
         {
           "cve": [
-            "CVE-2021-34552"
-          ],
-          "severity": 0.2,
-          "risk_level": "high",
-          "title": "pillow@5.3.0 is vulnerable to buffer overflow",
-          "description": "Pillow through 8.2.0 and PIL (aka Python Imaging Library) through 1.1.7 allow an attacker to pass controlled parameters directly into a convert function to trigger a buffer overflow in Convert.c.",
-          "remediation": "Upgrade to >= 8.3.0"
-        },
-        {
-          "cve": [
-            "CVE-2021-23437"
+            "CVE-2018-18074"
           ],
           "severity": 0.5,
           "risk_level": "medium",
-          "title": "pillow@5.3.0 is vulnerable to denial of service",
-          "description": "The package pillow from 0 and before 8.3.2 are vulnerable to Regular Expression Denial of Service (ReDoS) via the getrgb function.",
-          "remediation": "Upgrade to >= 8.3.2"
-        },
-        {
-          "cve": [
-            "CVE-2021-25289"
-          ],
-          "severity": 0.2,
-          "risk_level": "high",
-          "title": "pillow@5.3.0 is vulnerable to buffer overflow",
-          "description": "An issue was discovered in Pillow before 8.1.1. TiffDecode has a heap-based buffer overflow when decoding crafted YCbCr files because of certain interpretation conflicts with LibTIFF in RGBA mode. NOTE: this issue exists because of an incomplete fix for CVE-2020-35654.",
-          "remediation": "Upgrade to >= 8.1.1"
+          "title": "requests@2.6.1 is vulnerable to redirect",
+          "description": "The Requests package before 2.20.0 for Python sends an HTTP Authorization header to an http URI upon receiving a same-hostname https-to-http redirect, which makes it easier for remote attackers to discover credentials by sniffing the network.",
+          "remediation": "Upgrade to >= 2.20.0"
         }
       ],
       "issues": []
     },
     {
-      "name": "cffi",
-      "version": "1.14.6",
+      "name": "pyarrow",
+      "version": "5.0.0",
       "status": "complete",
-      "last_updated": 1635477492749,
-      "license": "MIT",
-      "package_score": 1.0,
+      "last_updated": 1637297891372,
+      "license": "Apache License, Version 2.0",
+      "package_score": 0.05,
       "num_dependencies": 1,
       "num_vulnerabilities": 0,
       "type": "python",
       "riskVectors": {
         "engineering": 1.0,
-        "vulnerability": 1.0,
-        "malicious_code": 1.0,
         "license": 1.0,
-        "author": 1.0
+        "malicious_code": 0.01,
+        "author": 1.0,
+        "vulnerability": 1.0
       },
       "dependencies": {
-        "pycparser": "*"
+        "numpy": ">=1.16.6"
       },
       "vulnerabilities": [],
-      "issues": []
+      "issues": [
+        {
+          "title": "pyarrow@5.0.0 uses suspicious executables",
+          "description": "### Overview\nThis packages uses suspicious executables that may be indicative of a malicious behavior. The following executables were identified:\n\n* `msbuild.exe` in `pyarrow-5.0.0/cmake_modules/ThirdpartyToolchain.cmake`\n\n### Description\nThe identified executables may be indicative of a malicious actor attempting to obfuscate their behavior. Commonly referred to as\n\"living off the land\", these executables are generally available on the operating system and make common behaviors (e.g.\ndownloading and execution) available to the attacker.\n",
+          "risk_level": "critical",
+          "risk_domain": "malicious_code"
+        }
+      ]
     },
     {
-      "name": "cherrypy",
-      "version": "8.9.1",
+      "name": "ansible",
+      "version": "2.9.4",
       "status": "complete",
-      "last_updated": 1635477495707,
-      "license": "BSD",
-      "package_score": 1.0,
-      "num_dependencies": 2,
-      "num_vulnerabilities": 0,
+      "last_updated": 1637297892189,
+      "license": "GPLv3+",
+      "package_score": 0.05,
+      "num_dependencies": 0,
+      "num_vulnerabilities": 8,
       "type": "python",
       "riskVectors": {
-        "malicious_code": 1.0,
-        "license": 1.0,
+        "author": 1.0,
         "engineering": 1.0,
-        "vulnerability": 1.0,
-        "author": 1.0
+        "malicious_code": 0.01,
+        "license": 0.2,
+        "vulnerability": 0.7
       },
-      "dependencies": {
-        "routes": ">=2.3.1",
-        "python-memcached": ">=1.58"
-      },
-      "vulnerabilities": [],
-      "issues": []
+      "dependencies": {},
+      "vulnerabilities": [
+        {
+          "cve": [
+            "CVE-2018-10874"
+          ],
+          "severity": 0.5,
+          "risk_level": "medium",
+          "title": "ansible@2.9.4 is vulnerable to run arbitrary code",
+          "description": "In ansible it was found that inventory variables are loaded from current working directory when running ad-hoc command which are under attacker's control, allowing to run arbitrary code as a result.",
+          "remediation": "No patched versions available"
+        },
+        {
+          "cve": [
+            "CVE-2020-25636"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to a flaw was found base when using the aws_ssm connection plugin",
+          "description": "A flaw was found in Ansible Base when using the aws_ssm connection plugin as there is no namespace separation for file transfers. Files are written directly to the root bucket, making possible to have collisions when running multiple ansible processes. This issue affects mainly the service availability.",
+          "remediation": "No patched versions available"
+        },
+        {
+          "cve": [
+            "CVE-2021-3533"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to a flaw was found if an ansible user sets ansible_async_dir",
+          "description": "A flaw was found in Ansible if an ansible user sets ANSIBLE_ASYNC_DIR to a subdirectory of a world writable directory. When this occurs, there is a race condition on the managed machine. A malicious, non-privileged account on the remote machine can exploit the race condition to access the async result data. This flaw affects Ansible Tower 3.7 and Ansible Automation Platform 1.2.",
+          "remediation": "No patched versions available"
+        },
+        {
+          "cve": [
+            "CVE-2020-25635"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to a flaw was found base when using the aws_ssm connection plugin",
+          "description": "A flaw was found in Ansible Base when using the aws_ssm connection plugin as garbage collector is not happening after playbook run is completed. Files would remain in the bucket exposing the data. This issue affects directly data confidentiality.",
+          "remediation": "No patched versions available"
+        },
+        {
+          "cve": [
+            "CVE-2021-3532"
+          ],
+          "severity": 0.5,
+          "risk_level": "medium",
+          "title": "ansible@2.9.4 is vulnerable to a flaw was found where the secret information present in async_files",
+          "description": "A flaw was found in Ansible where the secret information present in async_files are getting disclosed when the user changes the jobdir to a world readable directory. Any secret information in an async status file will be readable by a malicious user on that system. This flaw affects Ansible Tower 3.7 and Ansible Automation Platform 1.2.",
+          "remediation": "No patched versions available"
+        },
+        {
+          "cve": [
+            "CVE-2020-14330"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to an improper output neutralization for logs flaw",
+          "description": "An Improper Output Neutralization for Logs flaw was found in Ansible when using the uri module, where sensitive data is exposed to content and json output. This flaw allows an attacker to access the logs or outputs of performed tasks to read keys used in playbooks from other users within the uri module. The highest threat from this vulnerability is to data confidentiality.",
+          "remediation": "Upgrade to >= 2.10.0"
+        },
+        {
+          "cve": [
+            "CVE-2021-3583"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to command injection",
+          "description": "A flaw was found in Ansible, where a user's controller is vulnerable to template injection. This issue can occur through facts used in the template if the user is trying to put templates in multi-line YAML strings and the facts being handled do not routinely include special template characters. This flaw allows attackers to perform command injection, which discloses sensitive information. The highest threat from this vulnerability is to confidentiality and integrity.",
+          "remediation": "Upgrade to >= 2.9.23"
+        },
+        {
+          "cve": [
+            "CVE-2021-20191"
+          ],
+          "severity": 0.8,
+          "risk_level": "low",
+          "title": "ansible@2.9.4 is vulnerable to secrets, are being disclosed in console",
+          "description": "A flaw was found in ansible. Credentials, such as secrets, are being disclosed in console log by default and not protected by no_log feature when using those modules. An attacker can take advantage of this information to steal those credentials. The highest threat from this vulnerability is to data confidentiality. Versions before ansible 2.9.18 are affected.",
+          "remediation": "Upgrade to >= 2.8.19, >= 2.9.18, >= 2.10.7"
+        }
+      ],
+      "issues": [
+        {
+          "title": "ansible@2.9.4 uses suspicious executables",
+          "description": "### Overview\nThis packages uses suspicious executables that may be indicative of a malicious behavior. The following executables were identified:\n\n* `expand.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_hotfix.ps1`\n* `expand.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_hotfix.ps1`\n* `expand.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_hotfix.ps1`\n* `regedit.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_psexec.py`\n* `reg.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_regedit.ps1`\n* `reg.exe` in `ansible-2.9.4/lib/ansible/modules/windows/win_regmerge.py`\n\n### Description\nThe identified executables may be indicative of a malicious actor attempting to obfuscate their behavior. Commonly referred to as\n\"living off the land\", these executables are generally available on the operating system and make common behaviors (e.g.\ndownloading and execution) available to the attacker.\n",
+          "risk_level": "critical",
+          "risk_domain": "malicious_code"
+        },
+        {
+          "title": "Commercial license risk detected in ansible@2.9.4",
+          "description": "### Overview\nThis package uses the **GPLv3+** license, which is a **high** risk level to commercial use.\n\n### Description\nOpen source software generally ships with an associated license. If present, this license may be highly permissive to commercial use or may mandate the release of internal source code as a result of using the open source software package.\n\n### Importance\nBy leveraging existing open source software packages, you may be inadvertently agreeing to conditions that may prove difficult to adhere to in a commercial setting.",
+          "risk_level": "high",
+          "risk_domain": "license"
+        }
+      ]
     }
   ]
 }

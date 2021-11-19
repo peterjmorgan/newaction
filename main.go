@@ -19,8 +19,15 @@ func main() {
 		{"peterjmorgan/analyze-pr-action-test", 9,"js"},
 		{"peterjmorgan/analyze-pr-action-test", 7,"js"},
 		{"peterjmorgan/analyze-pr-action-test", 5,"py"},
+		{"peterjmorgan/analyze-pr-action-test", 10,"py"},
 	}
-	ut := UserThresholds{0.25,0.25,0.25,0.25,0.25}
+	ut := UserThresholds{
+		0.65,
+		0.65,
+		0.65,
+		0.65,
+		0.65,
+	}
 
 	for _, td := range testData {
 		diffText := GetPRDiff(td.repo,td.prNum)
@@ -31,5 +38,5 @@ func main() {
 		phylumRiskData := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
 		_ = phylumRiskData
 	}
-	fmt.Println("hihi")
+	fmt.Println("hihi") // spot to put a bp
 }
