@@ -274,6 +274,25 @@ func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThr
 	return strings.Join(results,"")
 }
 
+func ToI(input float64) int {
+	return int(input * 100)
+}
+
+func GenerateIssueRow(pkg Package, riskDomain string) string {
+	var singleIssue strings.Builder
+	if riskDomain == "vul" {
+		for _, vuln := range pkg.Vulnerabilities {
+			fmt.Fprintf(&singleIssue, "|%s|%s|%s\n", "Vuln", vuln.RiskLevel, vuln.Title)
+		}
+	} else {
+		for _, issue := range pkg.Issues {
+			//fmt.Fprintf(&singleIssue,"|%s|%s|%s\n", "Vuln",issue.RiskLevel, issue.Title)
+			fmt.Println("issue", issue)
+		}
+	}
+	return "blah"
+}
+
 func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	var headerString, failString, issueString strings.Builder
 	issueFlags := make([]string,0)
@@ -283,32 +302,32 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	fmt.Fprintf(&headerString, "|Risk Domain|Identified Score|Requirement|\n")
 	fmt.Fprintf(&headerString, "|-----------|----------------|-----------|\n")
 	if rv.Vulnerability <= ut.Vul {
-		fmt.Fprintf(&failString, "|Software Vulnerability|%d|%d|\n", rv.Vulnerability, ut.Vul)
+		fmt.Fprintf(&failString, "|Software Vulnerability|%d|%d|\n", ToI(rv.Vulnerability * 100), ToI(ut.Vul * 100))
 		issueFlags = append(issueFlags,"vul")
-		var singleIssue strings.Builder
-		for _, vuln := range pkg.Vulnerabilities {
-			fmt.Fprintf(&singleIssue,"|%s|%s|%s\n", "Vuln",vuln.RiskLevel, vuln.Title)
-		}
-		issueMap["vul"] = singleIssue.String()
+		issueMap["vul"] = GenerateIssueRow(pkg,"vul")
 	}
 	if rv.MaliciousCode <= ut.Mal {
-		fmt.Fprintf(&failString, "|Malicious Code|%d|%d|\n", rv.MaliciousCode, ut.Mal)
+		fmt.Fprintf(&failString, "|Malicious Code|%d|%d|\n", ToI(rv.MaliciousCode), ToI(ut.Mal))
 		issueFlags = append(issueFlags,"mal")
+		issueMap["mal"] = GenerateIssueRow(pkg,"mal")
 	}
 	if rv.License <= ut.Lic {
-		fmt.Fprintf(&failString, "|License|%d|%d|\n", rv.License, ut.Lic)
+		fmt.Fprintf(&failString, "|License|%d|%d|\n", ToI(rv.License), ToI(ut.Lic))
 		issueFlags = append(issueFlags,"lic")
+		issueMap["lic"] = GenerateIssueRow(pkg,"lic")
 	}
 	if rv.Engineering <= ut.Lic {
-		fmt.Fprintf(&failString, "|Engineering|%d|%d|\n", rv.Engineering, ut.Eng)
+		fmt.Fprintf(&failString, "|Engineering|%d|%d|\n", ToI(rv.Engineering), ToI(ut.Eng))
 		issueFlags = append(issueFlags,"eng")
+		issueMap["eng"] = GenerateIssueRow(pkg,"eng")
 	}
 	if rv.Author <= ut.Aut {
-		fmt.Fprintf(&failString, "|Author|%d|%d|\n", rv.Author, ut.Aut)
+		fmt.Fprintf(&failString, "|Author|%d|%d|\n", ToI(rv.Author), ToI(ut.Aut))
 		issueFlags = append(issueFlags,"aut")
+		issueMap["aut"] = GenerateIssueRow(pkg,"aut")
 	}
 
-	fmt.Fprintf(&issueString, "\n")
+	//fmt.Fprintf(&issueString, "\n")
 	fmt.Fprintf(&issueString, "#### Issues Summary\n")
 	fmt.Fprintf(&issueString, "|Risk Domain|Risk Level|Title|\n")
 	fmt.Fprintf(&issueString, "|-----------|----------|-----|\n")
