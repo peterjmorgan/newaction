@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -253,7 +254,7 @@ func ReadPhylumAnalysis(filePath string) PhylumJson {
 }
 
 // ParsePhylumRiskData Join the changed packages with risk data from Phylum
-func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) string {
+func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) (retdata string,err error) {
 	//resultPackages := make([]Package,0)
 	results := make([]string,0)
 	incompletes := make([]pkgVerTuple,0)
@@ -273,10 +274,9 @@ func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThr
 		}
 	}
 	if len(incompletes) > 0 {
-		fmt.Printf("[❌ ERROR] Phylum status for %d packages was incomplete\n", len(incompletes))
-		panic(errors.New("baaad"))
+		return "", fmt.Errorf("[❌ ERROR] Phylum status for %d packages was incomplete\n")
 	}
-	return strings.Join(results,"")
+	return strings.Join(results,""), nil
 }
 
 func ToI(input float64) int {
@@ -338,4 +338,37 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 		return headerString.String() + failString.String() + issueString.String()
 	}
 	return ""
+}
+
+func RunActionOne(repo string, prNum int, fileName string) {
+	var returnCode int
+	diffText := GetPRDiff(repo, prNum)
+	prType   := DeterminePatchType(diffText)
+	changes  := GetChanges(diffText)
+	pkgVer   := GetChangedPackages(changes,prType)
+	phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",td.lang))
+	phylumRiskData, err := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
+	if err != nil {
+		returnCode = 5	 //incomplete packages
+	}
+
+	if len(phylumRiskData) > 0 {
+		returnCode = 1
+		f1, err := os.Create("./pr_comment.txt")
+		if err != nil { // change to /home/runner for github
+			panic(errors.New("couldn't open pr_comment.txt for write()"))
+		}
+		f1.WriteString(phylumRiskData)
+	} else {
+		returnCode = 0
+	}
+
+	if f2, err := os.Create("./returncode.txt"); err != nil {
+
+	}
+
+
+
+
+
 }

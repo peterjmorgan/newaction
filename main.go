@@ -30,13 +30,13 @@ func main() {
 	}
 
 	for _, td := range testData {
-		diffText := GetPRDiff(td.repo,td.prNum)
-		prType   := DeterminePatchType(diffText)
-		changes  := GetChanges(diffText)
-		pkgVer   := GetChangedPackages(changes,prType)
-		phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",td.lang))
-		phylumRiskData := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
+		diffText 		:= GetPRDiff(td.repo,td.prNum)
+		prType   		:= DeterminePatchType(diffText)
+		changes  		:= GetChanges(diffText)
+		pkgVer   		:= GetChangedPackages(changes,prType)
+		phylumJsonData 	:= ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",td.lang))
+		phylumRiskData 	:= ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
 		_ = phylumRiskData
-	}
+}
 	fmt.Println("hihi") // spot to put a bp
 }
