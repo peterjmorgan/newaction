@@ -8,11 +8,17 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
-func GetPRDiff(repo string, prNum int) []byte {
+var gbl_didFail = false
+var PR_COMMENT_FILENAME = "./pr_comment.txt"
+var RETURNCODE_FILENAME = "./returncode.txt"
+
+func GetPRDiff(repo string, prNum int) (body *[]byte, err error) {
 	//if strings.ContainsRune(repo,'-') {
 	//	repo = strings.ReplaceAll(repo,"-","_")
 	//}
@@ -21,24 +27,25 @@ func GetPRDiff(repo string, prNum int) []byte {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		return nil, errors.New("couldn't GET the diff from GitHub")
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body = &[]byte{}
+	*body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return nil, errors.New("couldn't read data from body")
 	}
-	return body
+	return body,nil
 }
 
-func DeterminePatchType(diffData []byte) string {
-	var prType string
+func DeterminePatchType(diffData *[]byte) (prType string, lang string, err error) {
 
-	d, err := diff.ParseMultiFileDiff(diffData)
+	d, err := diff.ParseMultiFileDiff(*diffData)
 	if err != nil {
-		fmt.Println("[❌] DeterminePatchType couldn't parse diff output")
-		panic(err)
+		//fmt.Println("[❌] DeterminePatchType couldn't parse diff output")
+		err = fmt.Errorf("[❌] DeterminePatchType couldn't parse diff output")
+		return "", "", err
 	}
 	for _, diff := range d {
 		diffFileName := strings.TrimPrefix(diff.NewName, "b/")
@@ -48,20 +55,24 @@ func DeterminePatchType(diffData []byte) string {
 		switch diffFileName {
 		case "requirements.txt":
 			prType = "requirements.txt"
+			lang = "py"
 		case "package-lock.json":
 			prType = "package-lock.json"
+			lang = "js"
 		case "yarn.lock":
 			prType = "yarn.lock"
+			lang = "js"
 		case "Gemfile.lock":
 			prType = "Gemfile.lock"
+			lang = "rb"
 		}
 	}
-	return prType
+	return prType,lang,err
 }
 
-func GetChanges(diffData []byte) []string {
+func GetChanges(diffData *[]byte) *[]string {
 	changes := make([]string,0)
-	d, err := diff.ParseMultiFileDiff(diffData)
+	d, err := diff.ParseMultiFileDiff(*diffData)
 	if err != nil {
 		fmt.Println("[❌] GetChanges: couldn't parse diff output")
 		panic(err)
@@ -79,7 +90,7 @@ func GetChanges(diffData []byte) []string {
 			}
 		}
 	}
-	return changes
+	return &changes
 }
 
 type pkgVerTuple struct {
@@ -87,7 +98,7 @@ type pkgVerTuple struct {
 	version string
 }
 
-func ParsePackageLock(changes []string) []pkgVerTuple {
+func ParsePackageLock(changes *[]string) *[]pkgVerTuple {
 	cur := 0
 	pkgVer := make([]pkgVerTuple,0)
 
@@ -95,11 +106,11 @@ func ParsePackageLock(changes []string) []pkgVerTuple {
 	versionPat := regexp.MustCompile(`\+.*"version": "(.*?)"`)
 	resolvedPat := regexp.MustCompile(`\+.*"resolved": "(.*?)"`)
 
-	for cur < len(changes)-2 {
-		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
-		if versionPat.MatchString(changes[cur+1]) {
-			versionMatch := versionPat.FindAllStringSubmatch(changes[cur+1],-1)
-			if resolvedPat.MatchString(changes[cur+2]) {
+	for cur < len(*changes)-2 {
+		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur],-1)
+		if versionPat.MatchString((*changes)[cur+1]) {
+			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1],-1)
+			if resolvedPat.MatchString((*changes)[cur+2]) {
 				if name := nameMatch[0][1]; !strings.Contains(name,"node_modules") {
 					pv := pkgVerTuple{nameMatch[0][1], versionMatch[0][1]}
 					pkgVer = append(pkgVer, pv)
@@ -108,10 +119,10 @@ func ParsePackageLock(changes []string) []pkgVerTuple {
 		}
 		cur += 1
 	}
-	return pkgVer
+	return &pkgVer
 }
 
-func ParseYarnLock(changes []string) []pkgVerTuple {
+func ParseYarnLock(changes *[]string) *[]pkgVerTuple {
 	cur := 0
 	pkgVer := make([]pkgVerTuple,0)
 
@@ -120,25 +131,25 @@ func ParseYarnLock(changes []string) []pkgVerTuple {
 	resolvedPat := regexp.MustCompile(`\+.*resolved "(.*?)"`)
 	integrityPat := regexp.MustCompile(`\+.*integrity.*`)
 
-	for cur < len(changes)-3 {
-		nameMatch := namePat.FindAllStringSubmatch(changes[cur],-1)
-		if versionPat.MatchString(changes[cur+1]) {
-			versionMatch := versionPat.FindAllStringSubmatch(changes[cur+1],-1)
-			if resolvedPat.MatchString(changes[cur+2]) {
-				if integrityPat.MatchString(changes[cur+3]) {
+	for cur < len(*changes)-3 {
+		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur],-1)
+		if versionPat.MatchString((*changes)[cur+1]) {
+			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1],-1)
+			if resolvedPat.MatchString((*changes)[cur+2]) {
+				if integrityPat.MatchString((*changes)[cur+3]) {
 					pkgVer = append(pkgVer, pkgVerTuple{nameMatch[0][1], versionMatch[0][1]})
 				}
 			}
 		}
 		cur += 1
 	}
-	return pkgVer
+	return &pkgVer
 }
 
-func ParseRequirementsDotTxt(changes []string) []pkgVerTuple {
+func ParseRequirementsDotTxt(changes *[]string) *[]pkgVerTuple {
 	nameVerPat := regexp.MustCompile(`\+(.*?)==(.*)`)
 	pkgVer := make([]pkgVerTuple,0)
-	for _,line := range changes {
+	for _,line := range *changes {
 		if strings.Contains(line,"\n") {
 			continue
 		}
@@ -147,23 +158,23 @@ func ParseRequirementsDotTxt(changes []string) []pkgVerTuple {
 			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1],nameVerMatch[0][2]})
 		}
 	}
-	return pkgVer
+	return &pkgVer
 }
 
-func ParseGemfileLock(changes []string) []pkgVerTuple {
+func ParseGemfileLock(changes *[]string) *[]pkgVerTuple {
 	nameVerPat := regexp.MustCompile(`\s{4}(.*?)\ \((.*?)\)`)
 	pkgVer := make([]pkgVerTuple,0)
-	for _,line := range changes {
+	for _,line := range *changes {
 		if nameVerPat.MatchString(line) {
 			nameVerMatch := nameVerPat.FindAllStringSubmatch(line, -1)
 			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1], nameVerMatch[0][2]})
 		}
 	}
-	return pkgVer
+	return &pkgVer
 }
 
-func GetChangedPackages(changes []string, prType string) []pkgVerTuple {
-	var pkgVer []pkgVerTuple
+func GetChangedPackages(changes *[]string, prType string) *[]pkgVerTuple {
+	var pkgVer *[]pkgVerTuple
 	switch prType {
 	case "package-lock.json":
 		pkgVer = ParsePackageLock(changes)
@@ -253,30 +264,26 @@ func ReadPhylumAnalysis(filePath string) PhylumJson {
 }
 
 // ParsePhylumRiskData Join the changed packages with risk data from Phylum
-func ParsePhylumRiskData(pkgVer []pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) string {
-	//resultPackages := make([]Package,0)
+func ParsePhylumRiskData(pkgVer *[]pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) (retdata string,err error) {
 	results := make([]string,0)
 	incompletes := make([]pkgVerTuple,0)
 
-	for _, pv := range pkgVer {
+	for _, pv := range *pkgVer {
 		for _, pkg := range phylumJson.Packages {
 			if pv.name == pkg.Name && pv.version == pkg.Version {
 				switch pkg.Status {
 				case "complete":
-					fmt.Println("[✅ COMPLETE] ", pkg.Name)
 					results = append(results, CheckRiskScores(pkg, ut))
 				case "incomplete":
-					fmt.Println("[❌ INCOMPLETE] ", pkg.Name)
 					incompletes = append(incompletes,pkgVerTuple{pkg.Name, pkg.Version})
 				}
 			}
 		}
 	}
 	if len(incompletes) > 0 {
-		fmt.Printf("[❌ ERROR] Phylum status for %d packages was incomplete\n", len(incompletes))
-		panic(errors.New("baaad"))
+		return "", fmt.Errorf("[❌ ERROR] Phylum status for %d packages was incomplete\n")
 	}
-	return strings.Join(results,"")
+	return strings.Join(results,""), nil
 }
 
 func ToI(input float64) int {
@@ -335,7 +342,72 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	}
 
 	if failString.Len() > 0 {
+		gbl_didFail = true
 		return headerString.String() + failString.String() + issueString.String()
 	}
 	return ""
+}
+
+func RunActionOne(repo string, prNum int, ut UserThresholds) {
+	var returnCode int
+	diffText,err := GetPRDiff(repo, prNum)
+	if err != nil {
+		panic(err)
+	}
+	prType,lang,err   := DeterminePatchType(diffText)
+	if err != nil {
+		panic(err)
+	}
+	changes  := GetChanges(diffText)
+	pkgVer   := GetChangedPackages(changes,prType)
+	phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",lang))
+	phylumRiskData, err := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
+	if err != nil {
+		returnCode = 5	 //incomplete packages
+		fmt.Printf("[*] Phylum analysis for %s PR#%d INCOMPLETE\n", repo, prNum)
+	}
+
+	if len(phylumRiskData) > 0 {
+		returnCode = 1
+
+		const header = `### Phylum OSS Supply Chain Risk Analysis
+		<details>
+		<summary>Background</summary>
+
+		<br />
+
+		This repository uses a GitHub Action to automatically analyze the risk of new dependencies added to requirements.txt via Pull Request. An administrator of this repository has set score requirements for Phylum's five risk domains.<br /><br />
+
+		If you see this comment, one or more dependencies added to the requirements.txt file in this Pull Request have failed Phylum's risk analysis.
+
+		</details>
+
+		`
+		projectFooter := fmt.Sprintf("\n[View this project in Phylum UI](https://app.phylum.io/projects/%s)", phylumJsonData.Project)
+		f1, err := os.Create(PR_COMMENT_FILENAME)
+		defer f1.Close()
+		if err != nil { // change to /home/runner for github
+			panic(fmt.Errorf("couldn't open %s for write()", PR_COMMENT_FILENAME))
+		}
+		f1.WriteString(header)
+		f1.WriteString(phylumRiskData)
+		f1.WriteString(projectFooter)
+		fmt.Printf("[*] wrote %d bytes to pr_comment.txt\n", len(header + phylumRiskData + projectFooter ))
+		fmt.Printf("[*] Phylum analysis for %s PR#%d FAILED\n", repo, prNum)
+
+	} else {
+		returnCode = 0
+		fmt.Printf("[*] Phylum analysis for %s PR#%d PASSED\n", repo, prNum)
+	}
+
+	f2, err := os.Create(RETURNCODE_FILENAME)
+	defer f2.Close()
+	if err != nil {
+		panic(fmt.Errorf("couldn't open %s for write()", RETURNCODE_FILENAME))
+	}
+	n2,err := f2.WriteString(strconv.Itoa(returnCode))
+	if err != nil {
+		panic(fmt.Errorf("couldn't write to %s ", RETURNCODE_FILENAME))
+	}
+	fmt.Printf("[*] wrote %d bytes to returncode.txt\n", n2)
 }
