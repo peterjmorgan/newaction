@@ -348,7 +348,19 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	return ""
 }
 
-func RunActionOne(repo string, prNum int, ut UserThresholds) {
+func PRType(repo string, prNum int) string {
+	diffText,err := GetPRDiff(repo, prNum)
+	if err != nil {
+		panic(err)
+	}
+	prType,_,err   := DeterminePatchType(diffText)
+	if err != nil {
+		panic(err)
+	}
+	return prType
+}
+
+func Analyze(repo string, prNum int, ut UserThresholds) {
 	var returnCode int
 	diffText,err := GetPRDiff(repo, prNum)
 	if err != nil {
