@@ -18,12 +18,14 @@ var gbl_didFail = false
 var PR_COMMENT_FILENAME = "./pr_comment.txt"
 var RETURNCODE_FILENAME = "./returncode.txt"
 
-func GetPRDiff(repo string, prNum int) (body *[]byte, err error) {
-	//if strings.ContainsRune(repo,'-') {
-	//	repo = strings.ReplaceAll(repo,"-","_")
-	//}
+func GetPRDiff(repo string, prNum int, provider int) (body *[]byte, err error) {
+	var url string
 
-	url := fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
+	if provider == 1 {
+		url = fmt.Sprintf("https://gitlab.com/%s/-/merge_requests/%d.diff", repo, prNum)
+	} else if provider == 0 {
+		url = fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
+	}
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -348,8 +350,8 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	return ""
 }
 
-func PRType(repo string, prNum int) string {
-	diffText,err := GetPRDiff(repo, prNum)
+func PRType(repo string, prNum int, provider int) string {
+	diffText,err := GetPRDiff(repo, prNum, provider)
 	if err != nil {
 		panic(err)
 	}
@@ -362,7 +364,8 @@ func PRType(repo string, prNum int) string {
 
 func Analyze(repo string, prNum int, ut UserThresholds) {
 	var returnCode int
-	diffText,err := GetPRDiff(repo, prNum)
+	provider := 0
+	diffText,err := GetPRDiff(repo, prNum, provider)
 	if err != nil {
 		panic(err)
 	}
