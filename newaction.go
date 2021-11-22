@@ -35,6 +35,7 @@ func GetPRDiff(repo string, prNum int, provider int) (body *[]byte, err error) {
 
 	body = &[]byte{}
 	*body, err = io.ReadAll(resp.Body)
+	fmt.Println("Resp body len: ", len(*body))
 	if err != nil {
 		return nil, errors.New("couldn't read data from body")
 	}
