@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sourcegraph/go-diff/diff"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,36 +17,42 @@ var gbl_didFail = false
 var PR_COMMENT_FILENAME = "./pr_comment.txt"
 var RETURNCODE_FILENAME = "./returncode.txt"
 
-func GetPRDiff(repo string, prNum int, provider int) (body *[]byte, err error) {
-	var url string
-
-	if provider == 1 {
-		url = fmt.Sprintf("https://gitlab.com/%s/-/merge_requests/%d.diff", repo, prNum)
-	} else if provider == 0 {
-		url = fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
-	}
-
-	resp, err := http.Get(url)
+func GetPRDiff() (body []byte, err error) {
+	ci_commit_sha := os.Getenv("CI_COMMIT_SHA")
+	_ = ci_commit_sha
+	ci_mr_target_branch := os.Getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
+	//lastArg := fmt.Sprintf("origin/%s", ci_mr_target_branch)
+	//diffCmd := exec.Command("git","diff", ci_commit_sha, lastArg)
+	diffCmd := exec.Command("git","diff", ci_mr_target_branch)
+	diffOut,err := diffCmd.Output()
 	if err != nil {
-		return nil, errors.New("couldn't GET the diff from GitHub")
+		fmt.Println("diffCmd failed")
+		panic(err)
 	}
-	defer resp.Body.Close()
+	fmt.Println(diffOut)
+	body = diffOut
 
-	if resp.StatusCode != 200 {
-		panic(errors.New("Response wasn't 200"))
-	}
+	//if provider == 1 {
+	//	url = fmt.Sprintf("https://gitlab.com/%s/-/merge_requests/%d.diff", repo, prNum)
+	//} else if provider == 0 {
+	//	url = fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
+	//}
+	//resp, err := http.Get(url)
+	//if err != nil {
+	//	return nil, errors.New("couldn't GET the diff from GitHub")
+	//}
+	//defer resp.Body.Close()
+	//if resp.StatusCode != 200 {
+	//	panic(errors.New("Response wasn't 200"))
+	//}
+	//body = &[]byte{}
 
-	body = &[]byte{}
-	*body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.New("couldn't read data from body")
-	}
 	return body,nil
 }
 
-func DeterminePatchType(diffData *[]byte) (prType string, lang string, err error) {
+func DeterminePatchType(diffData []byte) (prType string, lang string, err error) {
 
-	d, err := diff.ParseMultiFileDiff(*diffData)
+	d, err := diff.ParseMultiFileDiff(diffData)
 	if err != nil {
 		//fmt.Println("[❌] DeterminePatchType couldn't parse diff output")
 		err = fmt.Errorf("[❌] DeterminePatchType couldn't parse diff output")
@@ -76,9 +81,9 @@ func DeterminePatchType(diffData *[]byte) (prType string, lang string, err error
 	return prType,lang,err
 }
 
-func GetChanges(diffData *[]byte) *[]string {
+func GetChanges(diffData []byte) *[]string {
 	changes := make([]string,0)
-	d, err := diff.ParseMultiFileDiff(*diffData)
+	d, err := diff.ParseMultiFileDiff(diffData)
 	if err != nil {
 		fmt.Println("[❌] GetChanges: couldn't parse diff output")
 		panic(err)
@@ -355,7 +360,7 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 }
 
 func PRType(repo string, prNum int, provider int) string {
-	diffText,err := GetPRDiff(repo, prNum, provider)
+	diffText,err := GetPRDiff()
 	if err != nil {
 		panic(err)
 	}
@@ -368,8 +373,7 @@ func PRType(repo string, prNum int, provider int) string {
 
 func Analyze(repo string, prNum int, ut UserThresholds) {
 	var returnCode int
-	provider := 0
-	diffText,err := GetPRDiff(repo, prNum, provider)
+	diffText,err := GetPRDiff()
 	if err != nil {
 		panic(err)
 	}
