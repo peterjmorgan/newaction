@@ -8,14 +8,6 @@ import (
 	"strings"
 )
 
-type UserThresholds struct {
-	Vul float64
-	Mal float64
-	Lic float64
-	Eng float64
-	Aut float64
-}
-
 func main() {
 	testData := []struct{
 		repo string
@@ -37,9 +29,9 @@ func main() {
 	//}
 
 	prTypeCmd := flag.NewFlagSet("pr_type",flag.ExitOnError)
-	prTypeCmdRepo := prTypeCmd.String("r","repo","Repository (google/subcommand)")
-	prTypeCmdPR := prTypeCmd.Int("n", 1,"Number of PR/MR")
-	prTypeCmdProvider := prTypeCmd.Int("p",0, "0 for GitHub, 1 for GitLab")
+	//prTypeCmdRepo := prTypeCmd.String("r","repo","Repository (google/subcommand)")
+	//prTypeCmdPR := prTypeCmd.Int("n", 1,"Number of PR/MR")
+	//prTypeCmdProvider := prTypeCmd.Int("p",0, "0 for GitHub, 1 for GitLab")
 
 	analyzeCmd := flag.NewFlagSet("analyze", flag.ExitOnError)
 	analyzeCmdRepo := analyzeCmd.String("r","repo","Repository (google/subcommand)")
@@ -53,10 +45,12 @@ func main() {
 	switch os.Args[1] {
 	case "pr_type":
 		prTypeCmd.Parse(os.Args[2:])
-		prType := PRType(*prTypeCmdRepo,*prTypeCmdPR, *prTypeCmdProvider)
+		//prType := PRType(*prTypeCmdRepo,*prTypeCmdPR, *prTypeCmdProvider)
+		prType := PRType()
 		fmt.Println(prType)
 		os.Exit(0)
 	case "analyze":
+		//TODO: add argc checking here
 		analyzeCmd.Parse(os.Args[2:])
 		thresholds := strings.Split(*analyzeCmdThresholds,"," )
 		someFloats := make([]float64,0)

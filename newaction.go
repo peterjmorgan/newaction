@@ -5,49 +5,43 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sourcegraph/go-diff/diff"
-	"io"
+	"github.com/xanzy/go-gitlab"
 	"io/ioutil"
-	"net/http"
+	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-var gbl_didFail = false
 var PR_COMMENT_FILENAME = "./pr_comment.txt"
 var RETURNCODE_FILENAME = "./returncode.txt"
+const TOKEN_NAME = "PAT"
 
-func GetPRDiff(repo string, prNum int, provider int) (body *[]byte, err error) {
-	var url string
-
-	if provider == 1 {
-		url = fmt.Sprintf("https://gitlab.com/%s/-/merge_requests/%d.diff", repo, prNum)
-	} else if provider == 0 {
-		url = fmt.Sprintf("https://patch-diff.githubusercontent.com/raw/%s/pull/%d.diff", repo, prNum)
-	}
-
-	resp, err := http.Get(url)
+func GetPRDiff() (body []byte, err error) {
+	ci_commit_sha := os.Getenv("CI_COMMIT_SHA")
+	_ = ci_commit_sha
+	ci_mr_target_branch := os.Getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
+	lastArg := fmt.Sprintf("origin/%s", ci_mr_target_branch)
+	diffCmd := exec.Command("git","diff", ci_commit_sha, lastArg)
+	//diffCmd := exec.Command("git","diff", ci_mr_target_branch)
+	//fmt.Println("args", diffCmd.Args)
+	diffOut,err := diffCmd.Output()
 	if err != nil {
-		return nil, errors.New("couldn't GET the diff from GitHub")
+		fmt.Println("diffCmd failed")
+		panic(err)
 	}
-	defer resp.Body.Close()
+	//fmt.Println(diffOut)
+	body = diffOut
 
-	if resp.StatusCode != 200 {
-		panic(errors.New("Response wasn't 200"))
-	}
-
-	body = &[]byte{}
-	*body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.New("couldn't read data from body")
-	}
 	return body,nil
 }
 
-func DeterminePatchType(diffData *[]byte) (prType string, lang string, err error) {
+func DeterminePatchType(diffData []byte) (prType string, lang string, err error) {
 
-	d, err := diff.ParseMultiFileDiff(*diffData)
+	d, err := diff.ParseMultiFileDiff(diffData)
 	if err != nil {
 		//fmt.Println("[❌] DeterminePatchType couldn't parse diff output")
 		err = fmt.Errorf("[❌] DeterminePatchType couldn't parse diff output")
@@ -76,9 +70,9 @@ func DeterminePatchType(diffData *[]byte) (prType string, lang string, err error
 	return prType,lang,err
 }
 
-func GetChanges(diffData *[]byte) *[]string {
+func GetChanges(diffData []byte) *[]string {
 	changes := make([]string,0)
-	d, err := diff.ParseMultiFileDiff(*diffData)
+	d, err := diff.ParseMultiFileDiff(diffData)
 	if err != nil {
 		fmt.Println("[❌] GetChanges: couldn't parse diff output")
 		panic(err)
@@ -97,11 +91,6 @@ func GetChanges(diffData *[]byte) *[]string {
 		}
 	}
 	return &changes
-}
-
-type pkgVerTuple struct {
-	name string
-	version string
 }
 
 func ParsePackageLock(changes *[]string) *[]pkgVerTuple {
@@ -194,71 +183,12 @@ func GetChangedPackages(changes *[]string, prType string) *[]pkgVerTuple {
 	return pkgVer
 }
 
-type Package struct {
-	Name               string  `json:"name"`
-	Version            string  `json:"version"`
-	Status             string  `json:"status"`
-	LastUpdated        int64   `json:"last_updated"`
-	License            string  `json:"license"`
-	PackageScore       float64 `json:"package_score"`
-	NumDependencies    int     `json:"num_dependencies"`
-	NumVulnerabilities int     `json:"num_vulnerabilities"`
-	Type               string  `json:"type"`
-	RiskVectors        struct {
-		Engineering   float64 `json:"engineering"`
-		Vulnerability float64 `json:"vulnerability"`
-		Author        float64 `json:"author"`
-		MaliciousCode float64 `json:"malicious_code"`
-		License       float64 `json:"license"`
-	} `json:"riskVectors"`
-	Dependencies interface{}  `json:"dependencies"`
-	Vulnerabilities []struct {
-		Cve         []string `json:"cve"`
-		Severity    float64  `json:"severity"`
-		RiskLevel   string   `json:"risk_level"`
-		Title       string   `json:"title"`
-		Description string   `json:"description"`
-		Remediation string   `json:"remediation"`
-	} `json:"vulnerabilities"`
-	Issues       []struct {
-		Title	string `json:"title"`
-		Description string `json:"description"`
-		RiskLevel string `json:"risk_level"`
-		RiskDomain string `json:"risk_domain"`
-	}`json:"issues"`
-}
-
-type PhylumJson struct {
-	JobID         string  `json:"job_id"`
-	Ecosystem     string  `json:"ecosystem"`
-	UserID        string  `json:"user_id"`
-	UserEmail     string  `json:"user_email"`
-	CreatedAt     int64   `json:"created_at"`
-	Status        string  `json:"status"`
-	Score         float64 `json:"score"`
-	Pass          bool    `json:"pass"`
-	Msg           string  `json:"msg"`
-	Action        string  `json:"action"`
-	NumIncomplete int     `json:"num_incomplete"`
-	LastUpdated   int64   `json:"last_updated"`
-	Project       string  `json:"project"`
-	ProjectName   string  `json:"project_name"`
-	Label         string  `json:"label"`
-	Thresholds    struct {
-		Author        float64 `json:"author"`
-		Engineering   float64 `json:"engineering"`
-		License       float64 `json:"license"`
-		Malicious     float64 `json:"malicious"`
-		Total         float64 `json:"total"`
-		Vulnerability float64 `json:"vulnerability"`
-	} `json:"thresholds"`
-	Packages []Package `json:"packages"`
-}
-
-func ReadPhylumAnalysis(filePath string) PhylumJson {
+func ReadPhylumAnalysis(fileName string) PhylumJson {
+	homePath := os.Getenv("HOME")
+	filePath := filepath.Join(homePath, fileName)
 	data,err := ioutil.ReadFile(filePath)
 	if err != nil {
-		fmt.Println("[❌] ReadPhylumAnalysis couldn't read file: ", filePath)
+		fmt.Println("[❌] ReadPhylumAnalysis couldn't read file: ", fileName)
 		panic(err)
 	}
 	var phylumJson PhylumJson
@@ -348,47 +278,49 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	}
 
 	if failString.Len() > 0 {
-		gbl_didFail = true
 		return headerString.String() + failString.String() + issueString.String()
 	}
 	return ""
 }
 
-func PRType(repo string, prNum int, provider int) string {
-	diffText,err := GetPRDiff(repo, prNum, provider)
+func PRType() string {
+	diffText,err := GetPRDiff()
 	if err != nil {
 		panic(err)
 	}
-	prType,_,err   := DeterminePatchType(diffText)
+	prType,_,err := DeterminePatchType(diffText)
 	if err != nil {
 		panic(err)
 	}
 	return prType
 }
 
-func Analyze(repo string, prNum int, ut UserThresholds) {
+func Analyze(repo string, mrNum int, ut UserThresholds) {
 	var returnCode int
-	provider := 0
-	diffText,err := GetPRDiff(repo, prNum, provider)
+	diffText,err := GetPRDiff()
 	if err != nil {
 		panic(err)
 	}
 	prType,lang,err   := DeterminePatchType(diffText)
+	_ = lang
 	if err != nil {
 		panic(err)
 	}
 	changes  := GetChanges(diffText)
 	pkgVer   := GetChangedPackages(changes,prType)
-	phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",lang))
+	//phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",lang))
+	phylumJsonData := ReadPhylumAnalysis("phylum_analysis.json")
 	phylumRiskData, err := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
+	//TODO: can likely return just the exit value now - investigate
 	if err != nil {
 		returnCode = 5	 //incomplete packages
-		fmt.Printf("[*] Phylum analysis for %s PR#%d INCOMPLETE\n", repo, prNum)
+		fmt.Printf("[*] Phylum analysis for %s PR#%d INCOMPLETE\n", repo, mrNum)
 	}
 
 	if len(phylumRiskData) > 0 {
 		returnCode = 1
 
+		//TODO: could use the go:embed directive here
 		const header = `### Phylum OSS Supply Chain Risk Analysis
 		<details>
 		<summary>Background</summary>
@@ -403,20 +335,25 @@ func Analyze(repo string, prNum int, ut UserThresholds) {
 
 		`
 		projectFooter := fmt.Sprintf("\n[View this project in Phylum UI](https://app.phylum.io/projects/%s)", phylumJsonData.Project)
-		f1, err := os.Create(PR_COMMENT_FILENAME)
-		defer f1.Close()
-		if err != nil { // change to /home/runner for github
-			panic(fmt.Errorf("couldn't open %s for write()", PR_COMMENT_FILENAME))
+		finalStr := header + phylumRiskData + projectFooter
+		if err := CreateMRComment(repo, mrNum ,finalStr); err != nil {
+			panic(err)
 		}
-		f1.WriteString(header)
-		f1.WriteString(phylumRiskData)
-		f1.WriteString(projectFooter)
-		fmt.Printf("[*] wrote %d bytes to pr_comment.txt\n", len(header + phylumRiskData + projectFooter ))
-		fmt.Printf("[*] Phylum analysis for %s PR#%d FAILED\n", repo, prNum)
+
+		//f1, err := os.Create(PR_COMMENT_FILENAME)
+		//defer f1.Close()
+		//if err != nil { // change to /home/runner for github
+		//	panic(fmt.Errorf("couldn't open %s for write()", PR_COMMENT_FILENAME))
+		//}
+		//f1.WriteString(header)
+		//f1.WriteString(phylumRiskData)
+		//f1.WriteString(projectFooter)
+		//fmt.Printf("[*] wrote %d bytes to pr_comment.txt\n", len(header + phylumRiskData + projectFooter ))
+		fmt.Printf("[*] Phylum analysis for %s PR#%d FAILED\n", repo, mrNum)
 
 	} else {
 		returnCode = 0
-		fmt.Printf("[*] Phylum analysis for %s PR#%d PASSED\n", repo, prNum)
+		fmt.Printf("[*] Phylum analysis for %s PR#%d PASSED\n", repo, mrNum)
 	}
 
 	f2, err := os.Create(RETURNCODE_FILENAME)
@@ -429,4 +366,74 @@ func Analyze(repo string, prNum int, ut UserThresholds) {
 		panic(fmt.Errorf("couldn't write to %s ", RETURNCODE_FILENAME))
 	}
 	fmt.Printf("[*] wrote %d bytes to returncode.txt\n", n2)
+}
+
+func CreateMRComment(projectPath string, mrNum int, comment string) (err error) {
+	apiKey := os.Getenv(TOKEN_NAME)
+	if apiKey == "" {
+		panic("could not read apiKey from os.environment")
+	}
+
+	git, err := gitlab.NewClient(apiKey)
+	if err != nil {
+		log.Fatalf("failed to create client: %v", err)
+		return err
+
+	}
+
+	// Get a single project
+	//projPath := "peterjmorgan/phylum-analyze-pr-gitlab-test"
+	project, resp, err := git.Projects.GetProject(projectPath, &gitlab.GetProjectOptions{}, nil)
+	if err != nil {
+		log.Fatalf("Failed to get project %v", err)
+		return err
+	}
+	_ = resp
+
+	// Get a merge request
+	mr, resp, err := git.MergeRequests.GetMergeRequest(project.ID, mrNum, &gitlab.GetMergeRequestsOptions{})
+	if err != nil {
+		log.Fatalf("Failed to get MR #%d - %v", mrNum, err)
+		return err
+	}
+	_ = mr
+
+	// Get diff versions - not really sure what the disambiguation is here
+	mrDiffVersions, resp, err := git.MergeRequests.GetMergeRequestDiffVersions(
+		project.ID,
+		mrNum,
+		&gitlab.GetMergeRequestDiffVersionsOptions{})
+	if err != nil {
+		log.Fatalf("Failed to get MR #%d Diff Versions - %v", mrNum, err)
+		return err
+	}
+	_ = mrDiffVersions
+
+	// Get the latest diff version - I think this makes sense. I should operate off of the most recent diff, i think?
+	lastMrDiffVersion := mrDiffVersions[len(mrDiffVersions)-1]
+
+	// The single merge request DIff version
+	mrDiff, resp, err := git.MergeRequests.GetSingleMergeRequestDiffVersion(
+		project.ID,
+		mrNum,
+		lastMrDiffVersion.ID)
+	if err != nil {
+		log.Fatalf("Failed to get MR #%d diff id:%d - %v", mrNum, lastMrDiffVersion.ID, err)
+		return err
+	}
+	_ = mrDiff
+
+	note, resp, err := git.Notes.CreateMergeRequestNote(
+		project.ID,
+		30,
+		&gitlab.CreateMergeRequestNoteOptions{
+			Body: &comment,
+		},
+		nil, )
+	if err != nil {
+		log.Fatalf("Failed to create note on MR#%d - %v", mrNum, err)
+		return err
+	}
+	_ = note
+	return nil
 }
