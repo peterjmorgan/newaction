@@ -18,6 +18,7 @@ import (
 
 var PR_COMMENT_FILENAME = "./pr_comment.txt"
 var RETURNCODE_FILENAME = "./returncode.txt"
+
 const TOKEN_NAME = "PAT"
 
 func GetPRDiff() (body []byte, err error) {
@@ -25,18 +26,17 @@ func GetPRDiff() (body []byte, err error) {
 	_ = ci_commit_sha
 	ci_mr_target_branch := os.Getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 	lastArg := fmt.Sprintf("origin/%s", ci_mr_target_branch)
-	diffCmd := exec.Command("git","diff", ci_commit_sha, lastArg)
+	diffCmd := exec.Command("git", "diff", lastArg, ci_commit_sha)
 	//diffCmd := exec.Command("git","diff", ci_mr_target_branch)
 	//fmt.Println("args", diffCmd.Args)
-	diffOut,err := diffCmd.Output()
+	diffOut, err := diffCmd.Output()
 	if err != nil {
 		fmt.Println("diffCmd failed")
 		panic(err)
 	}
-	//fmt.Println(diffOut)
 	body = diffOut
 
-	return body,nil
+	return body, nil
 }
 
 func DeterminePatchType(diffData []byte) (prType string, lang string, err error) {
@@ -67,11 +67,11 @@ func DeterminePatchType(diffData []byte) (prType string, lang string, err error)
 			lang = "rb"
 		}
 	}
-	return prType,lang,err
+	return prType, lang, err
 }
 
 func GetChanges(diffData []byte) *[]string {
-	changes := make([]string,0)
+	changes := make([]string, 0)
 	d, err := diff.ParseMultiFileDiff(diffData)
 	if err != nil {
 		fmt.Println("[❌] GetChanges: couldn't parse diff output")
@@ -80,10 +80,10 @@ func GetChanges(diffData []byte) *[]string {
 	for _, diff := range d {
 		for _, hunk := range diff.Hunks {
 			initial := string(hunk.Body)
-			if strings.Contains(initial,"\n") {
-				strs := strings.Split(initial,"\n")
+			if strings.Contains(initial, "\n") {
+				strs := strings.Split(initial, "\n")
 				for _, str := range strs {
-					if strings.HasPrefix(str,"+") && len(str) > 1 {
+					if strings.HasPrefix(str, "+") && len(str) > 1 {
 						changes = append(changes, str)
 					}
 				}
@@ -94,19 +94,20 @@ func GetChanges(diffData []byte) *[]string {
 }
 
 func ParsePackageLock(changes *[]string) *[]pkgVerTuple {
+	fmt.Println("[DEBUG] In ParsePackageLock")
 	cur := 0
-	pkgVer := make([]pkgVerTuple,0)
+	pkgVer := make([]pkgVerTuple, 0)
 
-	namePat := regexp.MustCompile(`\+.*"(.*?)": {`)
+	namePat := regexp.MustCompile(`\+.*?"(.*?)": {`)
 	versionPat := regexp.MustCompile(`\+.*"version": "(.*?)"`)
 	resolvedPat := regexp.MustCompile(`\+.*"resolved": "(.*?)"`)
 
 	for cur < len(*changes)-2 {
-		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur],-1)
+		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur], -1)
 		if versionPat.MatchString((*changes)[cur+1]) {
-			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1],-1)
+			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1], -1)
 			if resolvedPat.MatchString((*changes)[cur+2]) {
-				if name := nameMatch[0][1]; !strings.Contains(name,"node_modules") {
+				if name := nameMatch[0][1]; !strings.Contains(name, "node_modules") {
 					pv := pkgVerTuple{nameMatch[0][1], versionMatch[0][1]}
 					pkgVer = append(pkgVer, pv)
 				}
@@ -119,7 +120,7 @@ func ParsePackageLock(changes *[]string) *[]pkgVerTuple {
 
 func ParseYarnLock(changes *[]string) *[]pkgVerTuple {
 	cur := 0
-	pkgVer := make([]pkgVerTuple,0)
+	pkgVer := make([]pkgVerTuple, 0)
 
 	namePat := regexp.MustCompile(`\+(.*?)@.*:`)
 	versionPat := regexp.MustCompile(`\+.*version "(.*?)"`)
@@ -127,9 +128,9 @@ func ParseYarnLock(changes *[]string) *[]pkgVerTuple {
 	integrityPat := regexp.MustCompile(`\+.*integrity.*`)
 
 	for cur < len(*changes)-3 {
-		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur],-1)
+		nameMatch := namePat.FindAllStringSubmatch((*changes)[cur], -1)
 		if versionPat.MatchString((*changes)[cur+1]) {
-			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1],-1)
+			versionMatch := versionPat.FindAllStringSubmatch((*changes)[cur+1], -1)
 			if resolvedPat.MatchString((*changes)[cur+2]) {
 				if integrityPat.MatchString((*changes)[cur+3]) {
 					pkgVer = append(pkgVer, pkgVerTuple{nameMatch[0][1], versionMatch[0][1]})
@@ -143,14 +144,14 @@ func ParseYarnLock(changes *[]string) *[]pkgVerTuple {
 
 func ParseRequirementsDotTxt(changes *[]string) *[]pkgVerTuple {
 	nameVerPat := regexp.MustCompile(`\+(.*?)==(.*)`)
-	pkgVer := make([]pkgVerTuple,0)
-	for _,line := range *changes {
-		if strings.Contains(line,"\n") {
+	pkgVer := make([]pkgVerTuple, 0)
+	for _, line := range *changes {
+		if strings.Contains(line, "\n") {
 			continue
 		}
 		if nameVerPat.MatchString(line) {
-			nameVerMatch := nameVerPat.FindAllStringSubmatch(line,-1)
-			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1],nameVerMatch[0][2]})
+			nameVerMatch := nameVerPat.FindAllStringSubmatch(line, -1)
+			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1], nameVerMatch[0][2]})
 		}
 	}
 	return &pkgVer
@@ -158,8 +159,8 @@ func ParseRequirementsDotTxt(changes *[]string) *[]pkgVerTuple {
 
 func ParseGemfileLock(changes *[]string) *[]pkgVerTuple {
 	nameVerPat := regexp.MustCompile(`\s{4}(.*?)\ \((.*?)\)`)
-	pkgVer := make([]pkgVerTuple,0)
-	for _,line := range *changes {
+	pkgVer := make([]pkgVerTuple, 0)
+	for _, line := range *changes {
 		if nameVerPat.MatchString(line) {
 			nameVerMatch := nameVerPat.FindAllStringSubmatch(line, -1)
 			pkgVer = append(pkgVer, pkgVerTuple{nameVerMatch[0][1], nameVerMatch[0][2]})
@@ -186,7 +187,7 @@ func GetChangedPackages(changes *[]string, prType string) *[]pkgVerTuple {
 func ReadPhylumAnalysis(fileName string) PhylumJson {
 	homePath := os.Getenv("HOME")
 	filePath := filepath.Join(homePath, fileName)
-	data,err := ioutil.ReadFile(filePath)
+	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Println("[❌] ReadPhylumAnalysis couldn't read file: ", fileName)
 		panic(err)
@@ -200,9 +201,9 @@ func ReadPhylumAnalysis(fileName string) PhylumJson {
 }
 
 // ParsePhylumRiskData Join the changed packages with risk data from Phylum
-func ParsePhylumRiskData(pkgVer *[]pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) (retdata string,err error) {
-	results := make([]string,0)
-	incompletes := make([]pkgVerTuple,0)
+func ParsePhylumRiskData(pkgVer *[]pkgVerTuple, phylumJson PhylumJson, ut UserThresholds) (retdata string, err error) {
+	results := make([]string, 0)
+	incompletes := make([]pkgVerTuple, 0)
 
 	for _, pv := range *pkgVer {
 		for _, pkg := range phylumJson.Packages {
@@ -211,7 +212,7 @@ func ParsePhylumRiskData(pkgVer *[]pkgVerTuple, phylumJson PhylumJson, ut UserTh
 				case "complete":
 					results = append(results, CheckRiskScores(pkg, ut))
 				case "incomplete":
-					incompletes = append(incompletes,pkgVerTuple{pkg.Name, pkg.Version})
+					incompletes = append(incompletes, pkgVerTuple{pkg.Name, pkg.Version})
 				}
 			}
 		}
@@ -219,7 +220,7 @@ func ParsePhylumRiskData(pkgVer *[]pkgVerTuple, phylumJson PhylumJson, ut UserTh
 	if len(incompletes) > 0 {
 		return "", fmt.Errorf("[❌ ERROR] Phylum status for %d packages was incomplete\n")
 	}
-	return strings.Join(results,""), nil
+	return strings.Join(results, ""), nil
 }
 
 func ToI(input float64) int {
@@ -234,8 +235,8 @@ func GenerateIssueRow(pkg Package, riskDomain string) string {
 		}
 	} else {
 		for _, issue := range pkg.Issues {
-			riskDomain := strings.Replace(issue.RiskDomain, "_", " ",1)
-			fmt.Fprintf(&singleIssue,"|%s|%s|%s\n", riskDomain,issue.RiskLevel, issue.Title)
+			riskDomain := strings.Replace(issue.RiskDomain, "_", " ", 1)
+			fmt.Fprintf(&singleIssue, "|%s|%s|%s\n", riskDomain, issue.RiskLevel, issue.Title)
 		}
 	}
 	return singleIssue.String()
@@ -243,37 +244,37 @@ func GenerateIssueRow(pkg Package, riskDomain string) string {
 
 func CheckRiskScores(pkg Package, ut UserThresholds) string {
 	var headerString, failString, issueString strings.Builder
-	issueMap := make(map[string]string,0)
+	issueMap := make(map[string]string, 0)
 	rv := pkg.RiskVectors
 	fmt.Fprintf(&headerString, "### Package: `%s@%s` failed\n", pkg.Name, pkg.Version)
 	fmt.Fprintf(&headerString, "|Risk Domain|Identified Score|Requirement|\n")
 	fmt.Fprintf(&headerString, "|-----------|----------------|-----------|\n")
 	if rv.Vulnerability <= ut.Vul {
-		fmt.Fprintf(&failString, "|Software Vulnerability|%d|%d|\n", ToI(rv.Vulnerability * 100), ToI(ut.Vul * 100))
-		issueMap["vul"] = GenerateIssueRow(pkg,"vul")
+		fmt.Fprintf(&failString, "|Software Vulnerability|%d|%d|\n", ToI(rv.Vulnerability), ToI(ut.Vul))
+		issueMap["vul"] = GenerateIssueRow(pkg, "vul")
 	}
 	if rv.MaliciousCode <= ut.Mal {
 		fmt.Fprintf(&failString, "|Malicious Code|%d|%d|\n", ToI(rv.MaliciousCode), ToI(ut.Mal))
-		issueMap["mal"] = GenerateIssueRow(pkg,"mal")
+		issueMap["mal"] = GenerateIssueRow(pkg, "mal")
 	}
 	if rv.License <= ut.Lic {
 		fmt.Fprintf(&failString, "|License|%d|%d|\n", ToI(rv.License), ToI(ut.Lic))
-		issueMap["lic"] = GenerateIssueRow(pkg,"lic")
+		issueMap["lic"] = GenerateIssueRow(pkg, "lic")
 	}
 	if rv.Engineering <= ut.Lic {
 		fmt.Fprintf(&failString, "|Engineering|%d|%d|\n", ToI(rv.Engineering), ToI(ut.Eng))
-		issueMap["eng"] = GenerateIssueRow(pkg,"eng")
+		issueMap["eng"] = GenerateIssueRow(pkg, "eng")
 	}
 	if rv.Author <= ut.Aut {
 		fmt.Fprintf(&failString, "|Author|%d|%d|\n", ToI(rv.Author), ToI(ut.Aut))
-		issueMap["aut"] = GenerateIssueRow(pkg,"aut")
+		issueMap["aut"] = GenerateIssueRow(pkg, "aut")
 	}
 
 	fmt.Fprintf(&issueString, "#### Issues Summary\n")
 	fmt.Fprintf(&issueString, "|Risk Domain|Risk Level|Title|\n")
 	fmt.Fprintf(&issueString, "|-----------|----------|-----|\n")
 
-	for _,v := range issueMap {
+	for _, v := range issueMap {
 		fmt.Fprintf(&issueString, v)
 	}
 
@@ -284,11 +285,11 @@ func CheckRiskScores(pkg Package, ut UserThresholds) string {
 }
 
 func PRType() string {
-	diffText,err := GetPRDiff()
+	diffText, err := GetPRDiff()
 	if err != nil {
 		panic(err)
 	}
-	prType,_,err := DeterminePatchType(diffText)
+	prType, _, err := DeterminePatchType(diffText)
 	if err != nil {
 		panic(err)
 	}
@@ -297,23 +298,26 @@ func PRType() string {
 
 func Analyze(repo string, mrNum int, ut UserThresholds) {
 	var returnCode int
-	diffText,err := GetPRDiff()
+	diffText, err := GetPRDiff()
+	fmt.Println(string(diffText))
 	if err != nil {
 		panic(err)
 	}
-	prType,lang,err   := DeterminePatchType(diffText)
+	prType, lang, err := DeterminePatchType(diffText)
 	_ = lang
 	if err != nil {
 		panic(err)
 	}
-	changes  := GetChanges(diffText)
-	pkgVer   := GetChangedPackages(changes,prType)
+	changes := GetChanges(diffText)
+	fmt.Println("[DEBUG] Changes: ", *changes)
+	pkgVer := GetChangedPackages(changes, prType)
+	fmt.Println("[DEBUG] PkgVer: ", *pkgVer)
 	//phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",lang))
 	phylumJsonData := ReadPhylumAnalysis("phylum_analysis.json")
 	phylumRiskData, err := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
 	//TODO: can likely return just the exit value now - investigate
 	if err != nil {
-		returnCode = 5	 //incomplete packages
+		returnCode = 5 //incomplete packages
 		fmt.Printf("[*] Phylum analysis for %s PR#%d INCOMPLETE\n", repo, mrNum)
 	}
 
@@ -322,21 +326,19 @@ func Analyze(repo string, mrNum int, ut UserThresholds) {
 
 		//TODO: could use the go:embed directive here
 		const header = `### Phylum OSS Supply Chain Risk Analysis
-		<details>
-		<summary>Background</summary>
+<details>
+<summary>Background</summary>
 
-		<br />
+<br />
 
-		This repository uses a GitHub Action to automatically analyze the risk of new dependencies added to requirements.txt via Pull Request. An administrator of this repository has set score requirements for Phylum's five risk domains.<br /><br />
+This repository uses a GitHub Action to automatically analyze the risk of new dependencies added to requirements.txt via Pull Request. An administrator of this repository has set score requirements for Phylum's five risk domains.<br /><br />
 
-		If you see this comment, one or more dependencies added to the requirements.txt file in this Pull Request have failed Phylum's risk analysis.
+If you see this comment, one or more dependencies added to the requirements.txt file in this Pull Request have failed Phylum's risk analysis.
 
-		</details>
-
-		`
+</details>`
 		projectFooter := fmt.Sprintf("\n[View this project in Phylum UI](https://app.phylum.io/projects/%s)", phylumJsonData.Project)
-		finalStr := header + phylumRiskData + projectFooter
-		if err := CreateMRComment(repo, mrNum ,finalStr); err != nil {
+		finalStr := header + "\n\n" + phylumRiskData + projectFooter
+		if err := CreateMRComment(repo, mrNum, finalStr); err != nil {
 			panic(err)
 		}
 
@@ -361,7 +363,7 @@ func Analyze(repo string, mrNum int, ut UserThresholds) {
 	if err != nil {
 		panic(fmt.Errorf("couldn't open %s for write()", RETURNCODE_FILENAME))
 	}
-	n2,err := f2.WriteString(strconv.Itoa(returnCode))
+	n2, err := f2.WriteString(strconv.Itoa(returnCode))
 	if err != nil {
 		panic(fmt.Errorf("couldn't write to %s ", RETURNCODE_FILENAME))
 	}
@@ -425,11 +427,11 @@ func CreateMRComment(projectPath string, mrNum int, comment string) (err error) 
 
 	note, resp, err := git.Notes.CreateMergeRequestNote(
 		project.ID,
-		30,
+		mrNum,
 		&gitlab.CreateMergeRequestNoteOptions{
 			Body: &comment,
 		},
-		nil, )
+		nil)
 	if err != nil {
 		log.Fatalf("Failed to create note on MR#%d - %v", mrNum, err)
 		return err
