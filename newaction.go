@@ -352,6 +352,8 @@ If you see this comment, one or more dependencies added to the requirements.txt 
 		panic(fmt.Errorf("couldn't write to %s ", RETURNCODE_FILENAME))
 	}
 	fmt.Printf("[*] wrote %d bytes to returncode.txt\n", n2)
+	fmt.Println("Exiting with returncode: ", returnCode)
+	os.Exit(returnCode)
 }
 
 func CreateMRComment(projectPath string, mrNum int, comment string) (err error) {
