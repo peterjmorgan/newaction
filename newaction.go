@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/sourcegraph/go-diff/diff"
 	"github.com/xanzy/go-gitlab"
@@ -16,7 +15,6 @@ import (
 	"strings"
 )
 
-var PR_COMMENT_FILENAME = "./pr_comment.txt"
 var RETURNCODE_FILENAME = "./returncode.txt"
 
 const TOKEN_NAME = "PAT"
@@ -47,10 +45,10 @@ func DeterminePatchType(diffData []byte) (prType string, lang string, err error)
 		err = fmt.Errorf("[❌] DeterminePatchType couldn't parse diff output")
 		return "", "", err
 	}
-	for _, diff := range d {
-		diffFileName := strings.TrimPrefix(diff.NewName, "b/")
+	for _, a_diff := range d {
+		diffFileName := strings.TrimPrefix(a_diff.NewName, "b/")
 		if prType != "" && diffFileName != prType {
-			errors.New("pull request changes multiple package files")
+			panic("pull request changes multiple package files")
 		}
 		switch diffFileName {
 		case "requirements.txt":
@@ -77,8 +75,8 @@ func GetChanges(diffData []byte) *[]string {
 		fmt.Println("[❌] GetChanges: couldn't parse diff output")
 		panic(err)
 	}
-	for _, diff := range d {
-		for _, hunk := range diff.Hunks {
+	for _, a_diff := range d {
+		for _, hunk := range a_diff.Hunks {
 			initial := string(hunk.Body)
 			if strings.Contains(initial, "\n") {
 				strs := strings.Split(initial, "\n")
@@ -94,7 +92,6 @@ func GetChanges(diffData []byte) *[]string {
 }
 
 func ParsePackageLock(changes *[]string) *[]pkgVerTuple {
-	fmt.Println("[DEBUG] In ParsePackageLock")
 	cur := 0
 	pkgVer := make([]pkgVerTuple, 0)
 
@@ -299,7 +296,6 @@ func PRType() string {
 func Analyze(repo string, mrNum int, ut UserThresholds) {
 	var returnCode int
 	diffText, err := GetPRDiff()
-	fmt.Println(string(diffText))
 	if err != nil {
 		panic(err)
 	}
@@ -309,16 +305,13 @@ func Analyze(repo string, mrNum int, ut UserThresholds) {
 		panic(err)
 	}
 	changes := GetChanges(diffText)
-	fmt.Println("[DEBUG] Changes: ", *changes)
 	pkgVer := GetChangedPackages(changes, prType)
-	fmt.Println("[DEBUG] PkgVer: ", *pkgVer)
-	//phylumJsonData := ReadPhylumAnalysis(fmt.Sprintf("./phylum_analysis_%s.json",lang))
 	phylumJsonData := ReadPhylumAnalysis("phylum_analysis.json")
 	phylumRiskData, err := ParsePhylumRiskData(pkgVer, phylumJsonData, ut)
 	//TODO: can likely return just the exit value now - investigate
 	if err != nil {
 		returnCode = 5 //incomplete packages
-		fmt.Printf("[*] Phylum analysis for %s PR#%d INCOMPLETE\n", repo, mrNum)
+		fmt.Printf("[*] Phylum analysis for %s MR#%d INCOMPLETE\n", repo, mrNum)
 	}
 
 	if len(phylumRiskData) > 0 {
@@ -342,20 +335,11 @@ If you see this comment, one or more dependencies added to the requirements.txt 
 			panic(err)
 		}
 
-		//f1, err := os.Create(PR_COMMENT_FILENAME)
-		//defer f1.Close()
-		//if err != nil { // change to /home/runner for github
-		//	panic(fmt.Errorf("couldn't open %s for write()", PR_COMMENT_FILENAME))
-		//}
-		//f1.WriteString(header)
-		//f1.WriteString(phylumRiskData)
-		//f1.WriteString(projectFooter)
-		//fmt.Printf("[*] wrote %d bytes to pr_comment.txt\n", len(header + phylumRiskData + projectFooter ))
-		fmt.Printf("[*] Phylum analysis for %s PR#%d FAILED\n", repo, mrNum)
+		fmt.Printf("[*] Phylum analysis for %s MR#%d FAILED\n", repo, mrNum)
 
 	} else {
 		returnCode = 0
-		fmt.Printf("[*] Phylum analysis for %s PR#%d PASSED\n", repo, mrNum)
+		fmt.Printf("[*] Phylum analysis for %s MR#%d PASSED\n", repo, mrNum)
 	}
 
 	f2, err := os.Create(RETURNCODE_FILENAME)
@@ -425,7 +409,7 @@ func CreateMRComment(projectPath string, mrNum int, comment string) (err error) 
 	}
 	_ = mrDiff
 
-	note, resp, err := git.Notes.CreateMergeRequestNote(
+	_, resp, err = git.Notes.CreateMergeRequestNote(
 		project.ID,
 		mrNum,
 		&gitlab.CreateMergeRequestNoteOptions{
@@ -436,6 +420,5 @@ func CreateMRComment(projectPath string, mrNum int, comment string) (err error) 
 		log.Fatalf("Failed to create note on MR#%d - %v", mrNum, err)
 		return err
 	}
-	_ = note
 	return nil
 }
