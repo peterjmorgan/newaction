@@ -21,7 +21,7 @@ const TOKEN_NAME = "PAT"
 
 func GetPRDiff() (body []byte, err error) {
 	ci_commit_sha := os.Getenv("CI_COMMIT_SHA")
-	_ = ci_commit_sha
+	//_ = ci_commit_sha
 	ci_mr_target_branch := os.Getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 	lastArg := fmt.Sprintf("origin/%s", ci_mr_target_branch)
 	diffCmd := exec.Command("git", "diff", lastArg, ci_commit_sha)
@@ -64,6 +64,10 @@ func DeterminePatchType(diffData []byte) (prType string, lang string, err error)
 			prType = "Gemfile.lock"
 			lang = "rb"
 		}
+	}
+	if prType == "" && lang == "" {
+		prType = "NA"
+		lang = "NA"
 	}
 	return prType, lang, err
 }
@@ -155,6 +159,7 @@ func ParseRequirementsDotTxt(changes *[]string) *[]pkgVerTuple {
 }
 
 func ParseGemfileLock(changes *[]string) *[]pkgVerTuple {
+	//TODO: missing the + suggesting this wasn't well tested. TEST THIS
 	nameVerPat := regexp.MustCompile(`\s{4}(.*?)\ \((.*?)\)`)
 	pkgVer := make([]pkgVerTuple, 0)
 	for _, line := range *changes {
